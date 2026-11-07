@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinguaLab — Interactive Syntax Trees</title>
+<meta name="description" content="LinguaLab helps linguistics students draw, explore and understand syntax trees step by step.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8C%B3%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --ink:#1c2340;--ink2:#59628a;--ink3:#8b93b3;--line:#e7eaf6;--soft:#f6f8ff;
+  --cyan:#0b8aa3;--rose:#d6294f;--indigo:#4f5bd5;--violet:#7c3aed;--amber:#b86a08;--green:#0f9d74;
+  --g-main:linear-gradient(120deg,#18b6cf 0%,#6c7cf5 50%,#ff6fae 100%);
+  --shadow:0 12px 32px rgba(76,92,170,.10);--shadow-s:0 4px 14px rgba(76,92,170,.08);
+  --r:18px;--sw:268px;
+  --font:Inter,"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);color:var(--ink);background:#fff;min-height:100vh;-webkit-font-smoothing:antialiased;line-height:1.5}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(820px 460px at -6% -8%,rgba(24,182,207,.17),transparent 62%),
+  radial-gradient(760px 480px at 106% -2%,rgba(255,111,174,.17),transparent 62%),
+  radial-gradient(720px 520px at 55% 118%,rgba(108,124,245,.10),transparent 60%),#fff}
+button,input,select{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:3px solid rgba(108,124,245,.45);outline-offset:2px;border-radius:10px}
+
+/* ── shell ── */
+.shell{display:flex;min-height:100vh}
+.sidebar{position:fixed;inset:0 auto 0 0;width:var(--sw);background:rgba(255,255,255,.93);backdrop-filter:blur(10px);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:22px 16px;z-index:60;transition:transform .28s}
+.brand{display:flex;align-items:center;gap:12px;padding:4px 8px 18px}
+.brand-mark{width:42px;height:42px;border-radius:13px;background:var(--g-main);display:grid;place-items:center;font-size:22px;box-shadow:0 8px 18px rgba(108,124,245,.3)}
+.brand b{font-size:19px;letter-spacing:-.3px;background:var(--g-main);-webkit-background-clip:text;background-clip:text;color:transparent;display:block;line-height:1.1}
+.brand small{font-size:11px;color:var(--ink3)}
+.nav{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:13px;font-weight:600;font-size:14.5px;color:var(--ink2);transition:.15s}
+.nav a .ic{width:30px;height:30px;border-radius:10px;background:var(--soft);display:grid;place-items:center;font-size:16px}
+.nav a:hover{background:var(--soft);color:var(--ink)}
+.nav a.active{background:linear-gradient(120deg,rgba(24,182,207,.14),rgba(255,111,174,.14));color:var(--ink);box-shadow:inset 0 0 0 1px rgba(108,124,245,.18)}
+.nav a.active .ic{background:#fff}
+.nav .sep{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);padding:16px 12px 6px}
+.side-foot{margin-top:auto;padding:14px 10px 0;border-top:1px solid var(--line);font-size:12px;color:var(--ink3)}
+.side-foot b{color:var(--ink2)}
+.main{flex:1;margin-left:var(--sw);min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;padding:14px 28px;background:rgba(255,255,255,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.menu-btn{display:none;width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:20px;cursor:pointer}
+.topbar h2{font-size:17px;font-weight:700;letter-spacing:-.2px;line-height:1.2}
+.topbar p{font-size:12.5px;color:var(--ink3)}
+.content{padding:30px 28px 40px;max-width:1040px;width:100%;margin:0 auto;flex:1}
+.foot{padding:18px 28px 28px;text-align:center;font-size:12.5px;color:var(--ink3)}
+.scrim{display:none}
+.view{display:none}.view.show{display:block;animation:fadeUp .35s ease}
+h1.page{font-size:28px;letter-spacing:-.6px;line-height:1.15}
+.lead{color:var(--ink2);margin:8px 0 22px;max-width:680px}
+
+/* ── home ── */
+.hero{padding:26px 0 8px;text-align:center}
+.pill{display:inline-flex;gap:8px;align-items:center;font-size:12.5px;font-weight:700;color:var(--cyan);background:#e9f8fb;border:1px solid #c5ecf4;padding:7px 14px;border-radius:999px}
+.hero h1{font-size:clamp(42px,7vw,72px);letter-spacing:-2px;line-height:1.02;margin:18px 0 14px;background:var(--g-main);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:850}
+.hero p{max-width:620px;margin:0 auto;font-size:18px;color:var(--ink2)}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:28px 0 10px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:13px 22px;border-radius:14px;font-weight:700;font-size:15px;border:1.5px solid var(--line);background:#fff;cursor:pointer;transition:.15s;box-shadow:var(--shadow-s)}
+.btn:hover{transform:translateY(-1px);border-color:#c9cff3}
+.btn.primary{border:0;color:#fff;background:var(--g-main);box-shadow:0 10px 24px rgba(108,124,245,.32)}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:34px}
+.feat{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow-s)}
+.feat .ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;margin-bottom:12px}
+.feat h3{font-size:16px;margin-bottom:4px}.feat p{font-size:14px;color:var(--ink2)}
+.trust{margin-top:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.trust .card{display:flex;gap:14px;align-items:flex-start}
+.trust .badge{flex:none;white-space:nowrap;cursor:default}
+.trust h3{font-size:15px;margin-bottom:2px}.trust p{font-size:13.5px;color:var(--ink2)}
+
+/* ── cards & composer ── */
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:20px}
+.composer{margin-bottom:22px}
+.opts{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed var(--line);font-size:13.5px;color:var(--ink2)}
+.opts select{padding:8px 12px;border:1.5px solid var(--line);border-radius:11px;background:#fff;font-size:13.5px}
+.rows{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:10px;align-items:center}
+.row .num{width:30px;height:30px;border-radius:50%;background:var(--g-main);color:#fff;font-weight:800;font-size:13px;display:grid;place-items:center;flex:none}
+.row input[type=text]{flex:1;min-width:0;padding:13px 16px;border:1.5px solid var(--line);border-radius:14px;font-size:16px;background:#fff;transition:.15s}
+.row input[type=text]:focus{outline:0;border-color:#6c7cf5;box-shadow:0 0 0 4px rgba(108,124,245,.15)}
+.row select{padding:12px 10px;border:1.5px solid var(--line);border-radius:14px;background:#fff;font-size:14px;max-width:190px}
+.row .x{width:34px;height:34px;border-radius:10px;border:0;background:transparent;color:var(--ink3);cursor:pointer;font-size:18px;flex:none}
+.row .x:hover{background:#ffe9ee;color:var(--rose)}
+.cbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:16px}
+.ghost{border:1.5px dashed #c9cff3;background:#fafbff;color:var(--indigo);font-weight:700;border-radius:13px;padding:10px 16px;cursor:pointer;font-size:14px}
+.ghost:hover{background:#f0f2ff}.ghost[disabled]{opacity:.5;cursor:not-allowed}
+.hint{font-size:12.5px;color:var(--ink3);flex:1;min-width:200px}
+kbd{font:600 11.5px var(--font);background:#f1f3fb;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;color:var(--ink2)}
+.go{position:relative;overflow:hidden;border:0;cursor:pointer;color:#fff;font-weight:800;font-size:15.5px;padding:14px 26px;border-radius:15px;display:inline-flex;gap:8px;align-items:center;
+  background:linear-gradient(120deg,#18b6cf,#6c7cf5,#ff6fae,#e5395b);background-size:240% 100%;background-position:0% 50%;
+  box-shadow:0 10px 24px rgba(108,124,245,.35);transition:background-position .5s,transform .12s,box-shadow .2s}
+.go:hover{background-position:100% 50%;box-shadow:0 14px 30px rgba(255,111,174,.38);transform:translateY(-1px)}
+.go:active{transform:scale(.97)}
+.go[disabled]{opacity:.8;cursor:progress;animation:hue 1.6s linear infinite}
+.go .spark{display:inline-block;transition:transform .3s}.go:hover .spark{transform:rotate(18deg) scale(1.2)}
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.55);width:24px;height:24px;margin:-12px 0 0 -12px;animation:ripple .65s ease-out forwards;pointer-events:none}
+.pfx{position:fixed;z-index:200;pointer-events:none;font-size:20px;animation:burst .95s cubic-bezier(.2,.8,.3,1) forwards}
+
+/* ── results ── */
+.result{margin-bottom:22px;overflow:visible}
+.rhead{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
+.idx{width:28px;height:28px;border-radius:9px;background:var(--soft);color:var(--indigo);font-weight:800;font-size:13px;display:grid;place-items:center;flex:none}
+.rtitle{font-size:18px;font-weight:700;letter-spacing:-.2px;flex:1;min-width:160px;word-break:break-word}
+.badge{position:relative;display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:help;border:1px solid transparent;user-select:none}
+.badge.ok{background:#e4f7fb;color:#07667b;border-color:#bfe8f1}
+.badge.ai{background:#fff4d9;color:#8a5200;border-color:#f6dca0}
+.tip{position:absolute;left:0;top:calc(100% + 8px);width:min(330px,78vw);background:#1c2340;color:#fff;padding:13px 15px;border-radius:13px;font-size:12.5px;font-weight:500;line-height:1.55;box-shadow:0 14px 34px rgba(20,24,60,.32);opacity:0;visibility:hidden;transform:translateY(-4px);transition:.15s;z-index:30;text-align:left;cursor:default}
+.tip b{display:block;margin-bottom:4px}.tip ul{margin:6px 0 0 16px}.tip li{margin:3px 0}
+.badge:hover .tip,.badge:focus .tip,.badge.open .tip{opacity:1;visibility:visible;transform:none}
+.mini{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:7px 11px;font-size:12.5px;font-weight:700;color:var(--ink2);cursor:pointer}
+.mini:hover{background:var(--soft)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 0}
+.tools select{padding:7px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:12.5px;font-weight:600}
+.tools .grow{flex:1}
+.treebox{background:linear-gradient(180deg,#fbfcff,#fff);border:1px solid var(--line);border-radius:16px;overflow-x:auto;padding:12px 8px}
+.treebox svg{display:block;margin:0 auto;max-width:none}
+.node{cursor:pointer;transform-box:fill-box;transform-origin:center}
+.node:hover rect{filter:brightness(1.06)}
+.node.sel rect{stroke-width:3.5;filter:drop-shadow(0 4px 8px rgba(76,92,170,.35))}
+.node:focus-visible{outline:0}.node:focus-visible rect{stroke:#1c2340;stroke-width:3}
+.wordtxt{font:500 14px var(--font);fill:#3b4468}
+.info{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fafbff;min-height:70px}
+.info .hintline{color:var(--ink3);font-size:13.5px}
+.info-head{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.info-head .chip{font-weight:800;font-size:12.5px;color:#fff;padding:4px 10px;border-radius:9px;background:var(--c,#6c7cf5)}
+.info-head b{font-size:15px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.fact{font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:4px 10px;color:var(--ink2)}
+.fact em{font-style:normal;font-weight:700;color:var(--ink)}
+.info p{font-size:13.5px;color:var(--ink2);margin-top:6px}
+details.steps{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+details.steps summary{cursor:pointer;padding:12px 16px;font-weight:700;font-size:14px;list-style:none}
+details.steps summary::-webkit-details-marker{display:none}
+details.steps summary::before{content:"▸ ";color:var(--indigo)}details.steps[open] summary::before{content:"▾ "}
+.steplist{list-style:none;padding:0 16px 14px;display:flex;flex-direction:column;gap:8px}
+.steplist li{display:flex;gap:10px;font-size:13.5px;color:var(--ink2);transition:.35s}
+.steplist li.wait{opacity:0;transform:translateY(5px)}
+.steplist .n{flex:none;width:24px;height:24px;border-radius:8px;background:var(--g-main);color:#fff;font-weight:800;font-size:12px;display:grid;place-items:center}
+.steplist code{font:600 13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);background:#f3f5ff;border-radius:6px;padding:1px 6px}
+.callout{margin-top:14px;border-radius:14px;padding:13px 16px;font-size:13.5px}
+.callout b{display:block;margin-bottom:4px;font-size:13.5px}.callout ul{margin-left:18px}.callout li{margin:3px 0}
+.callout.note{background:#eef6ff;border:1px solid #cfe2fb;color:#2a4a7a}
+.callout.warn{background:#fff6e6;border:1px solid #f6dfae;color:#7a5413}
+.callout.err{background:#fff0f3;border:1px solid #f7c5d1;color:#8b1f3a}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:12px;color:var(--ink2)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{width:13px;height:13px;border-radius:5px;display:inline-block;border:2px solid transparent}
+.skel{height:150px;border-radius:14px;background:linear-gradient(100deg,#f1f3fb 30%,#fafbff 50%,#f1f3fb 70%);background-size:200% 100%;animation:shimmer 1.2s linear infinite;display:grid;place-items:center;color:var(--ink3);font-weight:600;font-size:14px}
+
+/* ── library, books, owner ── */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.search{flex:1;min-width:200px;padding:12px 16px;border:1.5px solid var(--line);border-radius:14px;font-size:15px;background:#fff}
+.search:focus{outline:0;border-color:#6c7cf5;box-shadow:0 0 0 4px rgba(108,124,245,.15)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.fchip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-weight:700;font-size:13px;color:var(--ink2);cursor:pointer}
+.fchip.on{background:var(--g-main);color:#fff;border-color:transparent}
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.libitem{text-align:left;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;box-shadow:var(--shadow-s);transition:.15s;display:flex;flex-direction:column;gap:10px}
+.libitem:hover{transform:translateY(-2px);border-color:#c9cff3;box-shadow:var(--shadow)}
+.libitem b{font-size:15.5px;line-height:1.35}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--ink2)}
+.tag.b{background:#e3f8ee;color:#0b7a56}.tag.i{background:#fff2d9;color:#8a5200}.tag.a{background:#ffe7ed;color:#b0203f}.tag.x{background:#efe9fe;color:#5b2bc4}
+.empty{padding:34px;text-align:center;color:var(--ink3);border:1.5px dashed var(--line);border-radius:16px}
+.books{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:6px}
+.book h3{font-size:17px;letter-spacing:-.2px}.book .by{font-size:13px;color:var(--ink3);margin:2px 0 10px}
+.book p{font-size:14px;color:var(--ink2);margin-top:8px}
+.book .use{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--soft);font-size:13px;color:var(--ink2)}
+.owner-login{display:flex;gap:10px;flex-wrap:wrap}
+.owner-login input{flex:1;min-width:200px;padding:12px 16px;border:1.5px solid var(--line);border-radius:14px;font-size:15px}
+.qitem{margin-top:16px}
+.qmeta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:12.5px;color:var(--ink3)}
+.refs{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0 4px;font-size:13px;color:var(--ink2)}
+.refs label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.qbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.btn-ok{border:0;border-radius:12px;padding:11px 18px;font-weight:800;color:#fff;background:linear-gradient(120deg,#0fb98a,#18b6cf);cursor:pointer}
+.btn-no{border:1.5px solid #f3c1cd;border-radius:12px;padding:10px 16px;font-weight:700;color:var(--rose);background:#fff;cursor:pointer}
+.stat{display:inline-flex;gap:8px;align-items:center;background:var(--soft);border-radius:12px;padding:8px 14px;font-size:13.5px;font-weight:600;color:var(--ink2)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#1c2340;color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:300}
+.toast.show{opacity:1;transform:translateX(-50%)}
+
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{from{opacity:0;transform:scale(.45)}to{opacity:1;transform:scale(1)}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes shimmer{to{background-position:-200% 0}}
+@keyframes ripple{to{transform:scale(9);opacity:0}}
+@keyframes hue{50%{filter:hue-rotate(40deg)}}
+@keyframes burst{0%{opacity:1;transform:translate(0,0) scale(.5) rotate(0)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.3) rotate(var(--rot))}}
+
+@media(max-width:860px){
+  .sidebar{transform:translateX(-102%);width:min(300px,86vw)}
+  .sidebar.open{transform:none;box-shadow:0 0 60px rgba(20,24,60,.3)}
+  .scrim.show{display:block;position:fixed;inset:0;background:rgba(20,24,60,.4);z-index:50}
+  .main{margin-left:0}.menu-btn{display:grid;place-items:center}
+  .topbar{padding:12px 16px}.content{padding:22px 16px 30px}
+  .row{flex-wrap:wrap}.row select{max-width:none;flex:1 1 100%;margin-left:40px}
+  .go{width:100%;justify-content:center}.cbar .hint{flex:1 1 100%}
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar" aria-label="Main menu">
+    <div class="brand"><div class="brand-mark" aria-hidden="true">🌳</div><div><b>LinguaLab</b><small>Founded by Shes Mansoor</small></div></div>
+    <nav class="nav" id="nav">
+      <a href="#home" data-view="home"><span class="ic">🏠</span>Home</a>
+      <div class="sep">Analyse</div>
+      <a href="#psr" data-view="psr"><span class="ic">🌳</span>Syntax Analyser</a>
+      <a href="#xbar" data-view="xbar"><span class="ic">📐</span>X-bar Analysis</a>
+      <div class="sep">Learn</div>
+      <a href="#library" data-view="library"><span class="ic">📚</span>Verified Library</a>
+      <a href="#books" data-view="books"><span class="ic">📖</span>Reference Books</a>
+      <a href="#about" data-view="about"><span class="ic">💡</span>About</a>
+    </nav>
+    <div class="side-foot"><b>LinguaLab</b> · Founded by Shes Mansoor</div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Open menu">☰</button>
+      <div><h2 id="pageTitle">LinguaLab</h2><p id="pageSub"></p></div>
+    </header>
+
+    <main class="content">
+      <!-- HOME -->
+      <section class="view" id="view-home">
+        <div class="hero">
+          <span class="pill">✨ Interactive syntax trees for linguistics students</span>
+          <h1>LinguaLab</h1>
+          <p>Type a sentence and watch its tree grow, branch by branch. Tap any node to see what it is and why it sits there.</p>
+          <div class="cta">
+            <a class="btn primary" href="#psr">🌳 Open the Syntax Analyser</a>
+            <a class="btn" href="#xbar">📐 Try X-bar Analysis</a>
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="feat"><div class="ico" style="background:#e4f7fb">🎬</div><h3>Watch the tree grow</h3><p>S splits into NP and VP, then each branch opens up until every word has its place — one level at a time.</p></div>
+          <div class="feat"><div class="ico" style="background:#ffe9f3">👆</div><h3>Tap to understand</h3><p>Every node explains the rule that created it, the words it covers, and its role in the structure.</p></div>
+          <div class="feat"><div class="ico" style="background:#efe9fe">📝</div><h3>Practise in bulk</h3><p>Add as many sentences as you like — one per line — and get a tree for each in a single go.</p></div>
+        </div>
+        <div class="trust">
+          <div class="card"><span class="badge ok" style="cursor:default">✓ Linguist Verified</span><div><h3>Reviewed by a linguist</h3><p>These trees have been checked by the founder against the reference books. Hover over the badge to see which ones.</p></div></div>
+          <div class="card"><span class="badge ai" style="cursor:default">AI Generated</span><div><h3>Drawn by AI, clearly labelled</h3><p>New sentences are analysed by AI using the standard framework and stay labelled until a linguist reviews them.</p></div></div>
+        </div>
+      </section>
+
+      <!-- SYNTAX ANALYSER -->
+      <section class="view" id="view-psr">
+        <h1 class="page">Syntax Analyser</h1>
+        <p class="lead">Write one sentence per line. Press <kbd>Enter</kbd> or <kbd>↓</kbd> to move to the next line, then analyse them all together.</p>
+        <div id="composer-psr"></div>
+        <div id="results-psr" aria-live="polite"></div>
+      </section>
+
+      <!-- X-BAR -->
+      <section class="view" id="view-xbar">
+        <h1 class="page">X-bar Analysis</h1>
+        <p class="lead">Analyse one phrase at a time — a noun phrase, verb phrase, prepositional phrase, adjective phrase or adverb phrase.</p>
+        <div id="composer-xbar"></div>
+        <div id="results-xbar" aria-live="polite"></div>
+      </section>
+
+      <!-- LIBRARY -->
+      <section class="view" id="view-library">
+        <h1 class="page">Verified Library</h1>
+        <p class="lead">Ready-made trees reviewed by a linguist. Choose one to open it in the analyser.</p>
+        <div class="toolbar">
+          <input class="search" id="libSearch" type="search" placeholder="Search sentences or phrases…" aria-label="Search the library">
+          <div class="chips" id="libChips"></div>
+        </div>
+        <div id="libGrid" class="libgrid"></div>
+      </section>
+
+      <!-- BOOKS -->
+      <section class="view" id="view-books">
+        <h1 class="page">Reference Books</h1>
+        <p class="lead">LinguaLab follows the framework taught in these textbooks. Which book a tree was checked against is shown when you hover over its “Linguist Verified” badge.</p>
+        <div class="books" id="bookGrid"></div>
+        <div class="callout note" style="margin-top:18px"><b>A note on choices</b>Textbooks differ in detail. The X-bar page lets you choose between treating determiners as the specifier of NP or as the head of DP, so you can match your own course.</div>
+      </section>
+
+      <!-- ABOUT -->
+      <section class="view" id="view-about">
+        <h1 class="page">About LinguaLab</h1>
+        <div class="card" style="margin-top:14px">
+          <p style="color:var(--ink2)">LinguaLab is a learning tool for linguistics students. It turns the syntax trees you draw on paper into something you can watch being built, tap, and explore.</p>
+          <p style="color:var(--ink2);margin-top:12px">Trees marked <b>Linguist Verified</b> have been reviewed by the founder. Trees marked <b>AI Generated</b> are drawn by an AI model following the standard framework and have not yet been reviewed, so check them against your course notes.</p>
+          <p style="margin-top:18px;font-size:13px;color:var(--ink3);font-weight:700;letter-spacing:.06em;text-transform:uppercase">Founded by</p>
+          <p style="font-size:24px;font-weight:800;letter-spacing:-.4px;background:var(--g-main);-webkit-background-clip:text;background-clip:text;color:transparent;width:fit-content">Shes Mansoor</p>
+        </div>
+      </section>
+
+      <!-- OWNER (hidden: open with #owner) -->
+      <section class="view" id="view-owner">
+        <h1 class="page">Owner review</h1>
+        <p class="lead">Approve or reject the trees students have requested. Only approved trees become “Linguist Verified”.</p>
+        <div id="ownerBody"></div>
+      </section>
+    </main>
+    <footer class="foot">LinguaLab · Founded by Shes Mansoor</footer>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ═══════════════ config ═══════════════ */
+const API = { analyze: '/.netlify/functions/analyze', library: '/.netlify/functions/library', owner: '/.netlify/functions/owner' };
+const MAX_ROWS = 8;
+const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NS = 'http://www.w3.org/2000/svg';
+
+const REFERENCES = {
+  carnie: { title: 'Syntax: A Generative Introduction', edition: '4th edition', author: 'Andrew Carnie', publisher: 'Wiley-Blackwell', year: 2021,
+    covers: 'Constituency, trees and phrase-structure rules, then X-bar theory and its extension to functional categories such as DP, TP and CP.',
+    use: 'Used for the phrase-structure Syntax Analyser and the X-bar page.' },
+  radford: { title: 'English Syntax: An Introduction', edition: '', author: 'Andrew Radford', publisher: 'Cambridge University Press', year: 2004,
+    covers: 'A concise Minimalist-style introduction to English syntax. Its clause structure uses categories such as TP, CP and DP.',
+    use: 'Used for comparison where a structure is analysed differently from the basic S → NP VP framework.' },
+};
+const refLine = (r) => `${r.title}${r.edition ? ', ' + r.edition : ''} — ${r.author} (${r.publisher}, ${r.year})`;
+
+/* ═══════════════ tiny helpers ═══════════════ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat(Infinity)) { if (kid == null || kid === false) continue; e.append(kid.nodeType ? kid : document.createTextNode(String(kid))); }
+  return e;
+}
+function sv(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const disp = (l) => String(l).replace(/'/g, '′');
+const norm = (s) => s.normalize('NFKC').replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').trim().replace(/\s+/g, ' ').replace(/[.!?]+$/, '').toLowerCase();
+const wordsOf = (n) => (n.w !== undefined ? [n.w] : n.c.flatMap(wordsOf));
+const phraseOf = (n) => wordsOf(n).join(' ');
+const clone = (o) => JSON.parse(JSON.stringify(o));
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = text; document.body.append(ta); ta.select(); try { document.execCommand('copy'); } catch {} ta.remove(); }
+  toast('Copied');
+}
+
+/* ═══════════════ colours ═══════════════ */
+const FAM = {
+  cyan:   { d: '#0b8aa3', d2: '#2bb7d0', s: '#e3f6fa', b: '#9fdcea' },
+  indigo: { d: '#4f5bd5', d2: '#7b86f0', s: '#eaecfd', b: '#b9bffa' },
+  violet: { d: '#7c3aed', d2: '#a279f6', s: '#f1e9fe', b: '#cdb7fa' },
+  rose:   { d: '#d6294f', d2: '#f0587a', s: '#ffe7ed', b: '#f8b5c4' },
+  pink:   { d: '#d9468f', d2: '#ff7eb6', s: '#ffeaf4', b: '#fbbad8' },
+  amber:  { d: '#b86a08', d2: '#e3920f', s: '#fff2d9', b: '#f3d08e' },
+  slate:  { d: '#5a6384', d2: '#7f88a8', s: '#eef0f7', b: '#cfd4e6' },
+};
+function family(label) {
+  const b = label.replace(/'/g, '');
+  if (b === 'S') return 'rose';
+  if (['NP', 'N', 'Det', 'Pron', 'DP', 'D'].includes(b)) return 'cyan';
+  if (['VP', 'V', 'Aux'].includes(b)) return 'indigo';
+  if (['PP', 'P'].includes(b)) return 'violet';
+  if (['AdjP', 'Adj'].includes(b)) return 'amber';
+  if (['AdvP', 'Adv'].includes(b)) return 'pink';
+  return 'slate';
+}
+
+/* ═══════════════ glossary ═══════════════ */
+const GLOSS = {
+  'S': ['Sentence', 'The top node. A basic sentence is built from a subject noun phrase and a predicate verb phrase: S → NP VP.'],
+  "S'": ['Embedded clause', 'A clause introduced by a complementizer such as “that” or “if”: S′ → Comp S.'],
+  'NP': ['Noun phrase', 'A phrase built around a noun (or a pronoun). It can be a subject, an object, or the object of a preposition.'],
+  'VP': ['Verb phrase', 'The predicate: a verb together with its objects, complements and modifiers.'],
+  'PP': ['Prepositional phrase', 'A preposition followed by its noun phrase: PP → P NP.'],
+  'AdjP': ['Adjective phrase', 'A phrase built around an adjective, such as “very tall” or “proud of her son”.'],
+  'AdvP': ['Adverb phrase', 'A phrase built around an adverb. Even a single adverb such as “slowly” is wrapped in AdvP: AdvP → Adv.'],
+  'Det': ['Determiner', 'Words such as the, a, this, my. They specify the noun that follows.'],
+  'N': ['Noun', 'The head word of a noun phrase.'],
+  'V': ['Verb', 'The head word of a verb phrase.'],
+  'Adj': ['Adjective', 'A word that describes a noun.'],
+  'Adv': ['Adverb', 'A word that modifies a verb, an adjective or another adverb.'],
+  'P': ['Preposition', 'A word such as in, on, with or from that introduces its noun phrase.'],
+  'Pron': ['Pronoun', 'A word that stands in for a noun phrase (she, they, it).'],
+  'Aux': ['Auxiliary verb', 'A helping verb such as will, have, be or can.'],
+  'Conj': ['Conjunction', 'A word such as and, but or or that joins words, phrases or clauses.'],
+  'Comp': ['Complementizer', 'A word such as that, if or whether that introduces an embedded clause.'],
+};
+const CATNAME = { N: 'noun', V: 'verb', P: 'preposition', Adj: 'adjective', Adv: 'adverb', D: 'determiner' };
+
+/* ═══════════════ starter (seed) trees ═══════════════ */
+const W = (l, w) => ({ l, w });
+const T = (l, n, ...c) => (n ? { l, n, c } : { l, c });
+const SEEDS = [
+  { mode: 'psr', text: 'The cat sleeps.', refs: ['carnie'],
+    tree: T('S', 'A sentence splits into a subject NP and a predicate VP.', T('NP', 'The subject: a determiner and a noun.', W('Det', 'The'), W('N', 'cat')), T('VP', 'An intransitive verb takes nothing after it, so the VP holds just V.', W('V', 'sleeps'))),
+    pitfalls: ['Writing “sleeps” straight under S: every verb needs a VP above it.', 'Splitting “The” and “cat” into separate branches: they form one NP.'] },
+  { mode: 'psr', text: 'The dog barked loudly.', refs: ['carnie'],
+    tree: T('S', null, T('NP', null, W('Det', 'The'), W('N', 'dog')), T('VP', 'The verb and the adverb phrase that modifies it.', W('V', 'barked'), T('AdvP', '“loudly” is an adverb. An adverb is wrapped in AdvP and attached inside the VP it modifies.', W('Adv', 'loudly')))),
+    pitfalls: ['Hanging “loudly” directly under VP as a bare Adv: it needs its AdvP wrapper.', 'Attaching the AdvP to S instead of VP.'] },
+  { mode: 'psr', text: 'The child reads books.', refs: ['carnie'],
+    tree: T('S', null, T('NP', null, W('Det', 'The'), W('N', 'child')), T('VP', 'A transitive verb is followed by its object NP.', W('V', 'reads'), T('NP', '“books” is a bare plural noun, so this NP has no determiner.', W('N', 'books')))),
+    pitfalls: ['Putting “books” directly under VP without an NP above it.', 'Inventing a determiner for “books”: a bare plural has none.'] },
+  { mode: 'psr', text: 'The old man walked slowly.', refs: ['carnie'],
+    tree: T('S', null, T('NP', 'A determiner, an adjective and a noun, all inside one NP.', W('Det', 'The'), W('Adj', 'old'), W('N', 'man')), T('VP', null, W('V', 'walked'), T('AdvP', null, W('Adv', 'slowly')))),
+    pitfalls: ['Leaving “old” without an Adj label.', 'Splitting “The old man” into several phrases instead of one NP.'] },
+  { mode: 'psr', text: 'The old man walked slowly in the garden.', refs: ['carnie'],
+    tree: T('S', null, T('NP', null, W('Det', 'The'), W('Adj', 'old'), W('N', 'man')), T('VP', 'The verb with an adverb phrase and a prepositional phrase that both modify it.', W('V', 'walked'), T('AdvP', null, W('Adv', 'slowly')), T('PP', '“in the garden” is a preposition plus its NP. It modifies the verb, so it sits inside the VP.', W('P', 'in'), T('NP', null, W('Det', 'the'), W('N', 'garden'))))),
+    pitfalls: ['Writing “in the garden” as three loose words under VP: build PP → P NP.', 'Attaching the PP to S instead of VP.'] },
+
+  { mode: 'xbar', cat: 'N', det: 'np', text: 'the book', refs: ['carnie'],
+    tree: T('NP', 'The determiner is the specifier of NP.', W('Det', 'the'), T("N'", 'The N′ level is always present, even with no complement or adjunct.', W('N', 'book'))) },
+  { mode: 'xbar', cat: 'V', det: 'np', text: 'ate the apple', refs: ['carnie'],
+    tree: T('VP', null, T("V'", 'The object NP is the complement: sister of the head V, daughter of V′.', W('V', 'ate'), T('NP', null, W('Det', 'the'), T("N'", null, W('N', 'apple'))))) },
+  { mode: 'xbar', cat: 'P', det: 'np', text: 'in the garden', refs: ['carnie'],
+    tree: T('PP', null, T("P'", 'The NP is the complement of the preposition.', W('P', 'in'), T('NP', null, W('Det', 'the'), T("N'", null, W('N', 'garden'))))) },
+  { mode: 'xbar', cat: 'V', det: 'np', text: 'walked slowly', refs: ['carnie'],
+    tree: T('VP', null, T("V'", 'An adjunct adds a new V′ above the old one (the adjunct rule).', T("V'", null, W('V', 'walked')), T('AdvP', null, T("Adv'", null, W('Adv', 'slowly'))))) },
+];
+const seedKey = (s) => `${s.mode}|${s.cat || '-'}|${s.det || '-'}|${norm(s.text)}`;
+function findSeed(item) {
+  return SEEDS.find((s) => s.mode === item.mode && norm(s.text) === norm(item.text) &&
+    (item.mode === 'psr' || ((item.cat === 'auto' || item.cat === s.cat) && item.det === s.det)));
+}
+
+/* ═══════════════ tree helpers ═══════════════ */
+const bracket = (n) => (n.w !== undefined ? `[${n.l} ${n.w}]` : `[${n.l} ${n.c.map(bracket).join(' ')}]`);
+const isBar = (l) => /^(N|V|P|Adj|Adv|D)'$/.test(l);
+const isXP = (l) => /^(N|V|P|Adj|Adv|D)P$/.test(l);
+function annotate(n, parent, mode) {
+  n._p = parent;
+  if (mode === 'xbar') {
+    if (!parent) n._role = 'phrase';
+    else if (isBar(n.l)) n._role = 'bar';
+    else if (isXP(parent.l) || (parent.c && parent.c.length && isXP(parent.l))) n._role = 'specifier';
+    else if (isBar(parent.l)) n._role = parent.c.some((s) => s !== n && isBar(s.l)) ? 'adjunct' : (n.w !== undefined ? 'head' : 'complement');
+  }
+  if (n.c) n.c.forEach((c) => annotate(c, n, mode));
+}
+function levelOf(n) { return n.w !== undefined ? 'word' : isBar(n.l) ? 'bar' : 'phrase'; }
+
+/* ═══════════════ layout + drawing ═══════════════ */
+let _ctx; let svgCount = 0;
+function tw(text, size, weight) {
+  try { _ctx = _ctx || document.createElement('canvas').getContext('2d'); if (_ctx) { _ctx.font = `${weight} ${size}px Inter, "Segoe UI", system-ui, sans-serif`; return _ctx.measureText(text).width; } } catch {}
+  return text.length * size * 0.58;
+}
+const NH = 30, GAPY = 64, PADX = 16, PADY = 14, WORDDY = 26, STEP = 0.8;
+function layout(root) {
+  (function size(n) { n._w = Math.max(44, tw(disp(n.l), 14, 700) + 24); if (n.c) n.c.forEach(size); else n._ww = tw(n.w, 14, 500); })(root);
+  (function slot(n) { if (!n.c) { n._slot = Math.max(n._w, n._ww) + 20; return; } n.c.forEach(slot); n._slot = Math.max(n._w + 20, n.c.reduce((s, c) => s + c._slot, 0)); })(root);
+  let maxDepth = 0;
+  (function place(n, left, d) {
+    n._d = d; maxDepth = Math.max(maxDepth, d); n._y = PADY + NH / 2 + d * GAPY;
+    if (!n.c) { n._x = left + n._slot / 2; return; }
+    const total = n.c.reduce((s, c) => s + c._slot, 0); let x = left + (n._slot - total) / 2;
+    n.c.forEach((c) => { place(c, x, d + 1); x += c._slot; });
+    n._x = (n.c[0]._x + n.c[n.c.length - 1]._x) / 2;
+  })(root, PADX, 0);
+  return { width: Math.ceil(root._slot + PADX * 2), height: Math.ceil(PADY * 2 + NH + maxDepth * GAPY + WORDDY + 12), maxDepth };
+}
+
+function nodeStyle(n, mode) {
+  const f = FAM[family(n.l)]; const kind = n.w !== undefined ? 'word' : (mode === 'xbar' && isBar(n.l)) ? 'bar' : 'phrase';
+  if (kind === 'phrase') return { fill: null, grad: family(n.l), stroke: f.d, text: '#fff', sw: 1.5 };
+  if (kind === 'bar') return { fill: '#fff', stroke: f.d, text: f.d, sw: 2.5 };
+  return { fill: f.s, stroke: f.b, text: f.d, sw: 1.5 };
+}
+
+/* Draws the tree into `host`. sp = speed multiplier (0 = no animation). */
+function drawTree(host, srcTree, { mode, sp, onSelect }) {
+  const tree = clone(srcTree); annotate(tree, null, mode);
+  const L = layout(tree); const uid = 't' + (++svgCount); const inst = sp === 0;
+  host.replaceChildren();
+  const svg = sv('svg', { width: L.width, height: L.height, viewBox: `0 0 ${L.width} ${L.height}`, role: 'group', 'aria-label': 'Syntax tree: ' + phraseOf(tree) });
+  const defs = sv('defs', {}, svg);
+  for (const [k, c] of Object.entries(FAM)) { const g = sv('linearGradient', { id: `${uid}-${k}`, x1: 0, y1: 0, x2: 1, y2: 1 }, defs); sv('stop', { offset: 0, 'stop-color': c.d }, g); sv('stop', { offset: 1, 'stop-color': c.d2 }, g); }
+  const edges = sv('g', {}, svg), words = sv('g', {}, svg), nodes = sv('g', {}, svg);
+  let selected = null;
+  (function walk(n, p) {
+    const delay = n._d * STEP * sp;
+    if (p) {
+      const x1 = p._x, y1 = p._y + NH / 2, x2 = n._x, y2 = n._y - NH / 2, len = Math.hypot(x2 - x1, y2 - y1);
+      const line = sv('line', { x1, y1, x2, y2, stroke: FAM[family(n.l)].d, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-opacity': 0.55 }, edges);
+      if (!inst) { line.style.strokeDasharray = len; line.style.strokeDashoffset = len; line.style.animation = `draw ${0.45 * sp}s ease ${delay}s forwards`; }
+    }
+    const st = nodeStyle(n, mode);
+    const g = sv('g', { class: 'node', tabindex: 0, role: 'button', 'aria-label': `${disp(n.l)}: ${phraseOf(n)}` }, nodes);
+    sv('rect', { x: n._x - n._w / 2, y: n._y - NH / 2, width: n._w, height: NH, rx: 10, fill: st.grad ? `url(#${uid}-${st.grad})` : st.fill, stroke: st.stroke, 'stroke-width': st.sw }, g);
+    const t = sv('text', { x: n._x, y: n._y + 5, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, fill: st.text, 'font-family': 'Inter, Segoe UI, system-ui, sans-serif', 'pointer-events': 'none' }, g);
+    t.textContent = disp(n.l);
+    if (!inst) { g.style.opacity = 0; g.style.animation = `pop ${0.4 * sp}s cubic-bezier(.2,1.4,.4,1) ${delay + 0.35 * sp}s both`; }
+    const pick = () => { if (selected) selected.classList.remove('sel'); selected = g; g.classList.add('sel'); onSelect && onSelect(n); };
+    g.addEventListener('click', pick);
+    g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+    if (n.w !== undefined) {
+      const wd = (n._d + 1) * STEP * sp;
+      const dl = sv('line', { x1: n._x, y1: n._y + NH / 2 + 2, x2: n._x, y2: n._y + NH / 2 + WORDDY - 10, stroke: FAM[family(n.l)].b, 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }, words);
+      const wt = sv('text', { x: n._x, y: n._y + NH / 2 + WORDDY + 2, 'text-anchor': 'middle', class: 'wordtxt' }, words); wt.textContent = n.w;
+      if (!inst) { dl.style.opacity = 0; wt.style.opacity = 0; dl.style.animation = `fade ${0.4 * sp}s ease ${wd}s forwards`; wt.style.animation = `fade ${0.5 * sp}s ease ${wd + 0.1 * sp}s forwards`; }
+    }
+    if (n.c) n.c.forEach((c) => walk(c, n));
+  })(tree, null);
+  host.append(svg);
+  return { maxDepth: L.maxDepth };
+}
+
+/* Step-by-step list: shown progressively while the tree animates. */
+function buildSteps(tree, mode) {
+  const levels = [];
+  (function walk(n, d) { if (!n.c) return; (levels[d] = levels[d] || []).push([n.l, n.c.map((c) => c.l)]); n.c.forEach((c) => walk(c, d + 1)); })(tree, 0);
+  const items = [{ html: mode === 'xbar' ? ['Start with the maximal projection ', h('code', {}, disp(tree.l)), ', the whole phrase.'] : ['Start with ', h('code', {}, 'S'), ', the whole sentence.'] }];
+  levels.forEach((rules) => items.push({ html: rules.map(([p, k], i) => [i ? '   ·   ' : '', h('code', {}, `${disp(p)} → ${k.map(disp).join(' ')}`)]) }));
+  items.push({ html: ['Place each word under its word-level category.'] });
+  return items;
+}
+
+/* ═══════════════ explanations (computed from the tree itself) ═══════════════ */
+function explain(n, mode) {
+  const facts = [['Words', `“${phraseOf(n)}”`]]; const paras = [];
+  let title;
+  if (mode === 'xbar') {
+    const lvl = levelOf(n); const m = /^(N|V|P|Adj|Adv|D)/.exec(n.l); const X = m ? m[1] : '';
+    if (n.w !== undefined) { title = n.l === 'Det' ? 'Det — determiner (specifier of NP)' : `${n.l} — head (${CATNAME[X] || 'word'})`; facts.push(['Word', `${n.w} → ${n.l}`]); }
+    else if (lvl === 'bar') { title = `${disp(n.l)} — intermediate level`; facts.push(['Rule', `${disp(n.l)} → ${n.c.map((c) => disp(c.l)).join(' ')}`]); }
+    else { title = `${disp(n.l)} — ${CATNAME[X] || ''} phrase (maximal projection)`; facts.push(['Rule', `${disp(n.l)} → ${n.c.map((c) => disp(c.l)).join(' ')}`]); }
+    if (n._role && n._role !== 'phrase' && n._role !== 'bar') facts.push(['Role', n._role[0].toUpperCase() + n._role.slice(1)]);
+    if (n.n) paras.push('Why: ' + n.n);
+    if (lvl === 'phrase' && n.w === undefined) paras.push('Specifier rule: XP → (Specifier) X′. Every phrase has an X′ level; the specifier is optional.');
+    if (lvl === 'bar') paras.push(n.c.some((c) => isBar(c.l))
+      ? 'Adjunct rule: X′ → X′ (Adjunct). An optional modifier adds another X′ above the one it joins, and this can repeat.'
+      : 'Complement rule: X′ → X (Complement). The head combines with the phrase it requires.');
+    if (n._role === 'specifier') paras.push('A specifier is a daughter of XP and a sister of X′.');
+    if (n._role === 'adjunct') paras.push('An adjunct is optional: it is a daughter of X′ and a sister of another X′.');
+    if (n._role === 'complement') paras.push('A complement is required by the head: a daughter of X′ and a sister of the head X.');
+    if (n._role === 'head') paras.push('The head decides what kind of phrase this is.');
+  } else {
+    const g = GLOSS[n.l]; title = `${disp(n.l)} — ${g ? g[0] : 'category'}`;
+    if (n.w !== undefined) facts.push(['Word', `${n.w} → ${disp(n.l)}`]); else facts.push(['Rule here', `${disp(n.l)} → ${n.c.map((c) => disp(c.l)).join(' ')}`]);
+    if (n.n) paras.push('Why: ' + n.n);
+    if (g) paras.push(g[1]);
+  }
+  return { title, facts, paras };
+}
+function infoDom(n, mode) {
+  const e = explain(n, mode);
+  return [
+    h('div', { class: 'info-head' }, h('span', { class: 'chip', style: `--c:${FAM[family(n.l)].d}` }, disp(n.l)), h('b', {}, e.title)),
+    h('div', { class: 'facts' }, e.facts.map((f) => h('span', { class: 'fact' }, h('em', {}, f[0]), ' ', f[1]))),
+    ...e.paras.map((p) => h('p', {}, p)),
+  ];
+}
+
+/* ═══════════════ result cards ═══════════════ */
+function badgeFor(status, refs) {
+  const verified = status === 'verified';
+  const tip = h('span', { class: 'tip', role: 'tooltip' });
+  if (verified) {
+    tip.append(h('b', {}, 'Linguist Verified'), 'Reviewed by Shes Mansoor, founder of LinguaLab', (refs && refs.length) ? ', against:' : '.');
+    if (refs && refs.length) tip.append(h('ul', {}, refs.filter((r) => REFERENCES[r]).map((r) => h('li', {}, refLine(REFERENCES[r])))));
+  } else {
+    tip.append(h('b', {}, 'AI Generated'), 'Drawn by AI using the standard framework from introductory syntax textbooks. It has not been reviewed by a linguist yet, so check it against your course notes.');
+  }
+  const b = h('span', { class: 'badge ' + (verified ? 'ok' : 'ai'), tabindex: 0, 'aria-label': verified ? 'Linguist Verified. Activate for details.' : 'AI Generated, not yet reviewed. Activate for details.' }, verified ? '✓ Linguist Verified' : '🟡 AI Generated', tip);
+  b.addEventListener('click', (e) => { e.stopPropagation(); b.classList.toggle('open'); });
+  return b;
+}
+document.addEventListener('click', () => $$('.badge.open').forEach((b) => b.classList.remove('open')));
+
+function legendFor(mode) {
+  const dot = (c, sty) => h('i', { style: sty || `background:${FAM[c].d}` });
+  if (mode === 'xbar') return h('div', { class: 'legend' },
+    h('span', {}, h('i', { style: `background:${FAM.cyan.d}` }), 'XP — full phrase (solid)'),
+    h('span', {}, h('i', { style: `background:#fff;border-color:${FAM.cyan.d}` }), 'X′ — intermediate level (outlined)'),
+    h('span', {}, h('i', { style: `background:${FAM.cyan.s};border-color:${FAM.cyan.b}` }), 'X — head or word (soft)'),
+    h('span', {}, 'Colour shows the category: noun · verb · preposition · adjective · adverb'));
+  return h('div', { class: 'legend' },
+    [['rose', 'S'], ['cyan', 'NP'], ['indigo', 'VP'], ['violet', 'PP'], ['pink', 'AdvP'], ['amber', 'AdjP']].map(([c, t]) => h('span', {}, dot(c), t)),
+    h('span', {}, h('i', { style: `background:${FAM.slate.s};border-color:${FAM.slate.b}` }), 'Word-level labels'));
+}
+
+function resultCard(item, data, idx) {
+  const mode = item.mode; const card = h('article', { class: 'card result' });
+  const title = h('div', { class: 'rtitle' }, item.text);
+  if (data.status === 'error' || data.status === 'unsupported') {
+    card.append(h('div', { class: 'rhead' }, h('span', { class: 'idx' }, String(idx)), title),
+      h('div', { class: 'callout ' + (data.status === 'error' ? 'err' : 'note'), style: 'margin-top:0' },
+        h('b', {}, data.status === 'error' ? 'Could not analyse this line' : 'This phrase is outside the supported rules'),
+        data.status === 'error' ? data.message : data.reason));
+    return card;
+  }
+  const rec = data.record; const tree = rec.tree; let sp = REDUCED ? 0 : 1; const timers = [];
+  const copyBtn = h('button', { class: 'mini', type: 'button', onclick: () => copyText(bracket(tree)) }, '⧉ Copy bracket form');
+  card.append(h('div', { class: 'rhead' }, h('span', { class: 'idx' }, String(idx)), title, badgeFor(data.status, rec.refs)));
+  const box = h('div', { class: 'treebox' });
+  const info = h('div', { class: 'info', 'aria-live': 'polite' }, h('span', { class: 'hintline' }, 'Tap any node to see what it is, the words it covers and the rule that created it.'));
+  const steps = buildSteps(tree, mode);
+  const list = h('ol', { class: 'steplist' }, steps.map((s, i) => h('li', {}, h('span', { class: 'n' }, String(i + 1)), h('span', {}, s.html))));
+  const play = (speed) => {
+    sp = speed; timers.forEach(clearTimeout); timers.length = 0;
+    const meta = drawTree(box, tree, { mode, sp, onSelect: (n) => info.replaceChildren(...infoDom(n, mode)) });
+    $$('li', list).forEach((li, i) => {
+      li.classList.remove('wait');
+      if (sp === 0) return;
+      li.classList.add('wait');
+      timers.push(setTimeout(() => li.classList.remove('wait'), i * STEP * sp * 1000));
+    });
+    return meta;
+  };
+  const speedSel = h('select', { 'aria-label': 'Animation speed', onchange: (e) => play(parseFloat(e.target.value)) },
+    h('option', { value: '1.7' }, 'Slow'), h('option', { value: '1', selected: !REDUCED }, 'Normal'), h('option', { value: '0.5' }, 'Fast'), h('option', { value: '0', selected: REDUCED }, 'No animation'));
+  card.append(box,
+    h('div', { class: 'tools' }, h('button', { class: 'mini', type: 'button', onclick: () => { speedSel.value = speedSel.value === '0' ? '1' : speedSel.value; play(parseFloat(speedSel.value)); } }, '▶ Replay'),
+      h('button', { class: 'mini', type: 'button', onclick: () => { speedSel.value = '0'; play(0); } }, '⏭ Show all'), speedSel, h('span', { class: 'grow' }), copyBtn),
+    info,
+    h('details', { class: 'steps', open: true }, h('summary', {}, 'How the tree is built, step by step'), list),
+    legendFor(mode));
+  if (rec.notes && rec.notes.length) card.append(h('div', { class: 'callout note' }, h('b', {}, 'Good to know'), h('ul', {}, rec.notes.map((t) => h('li', {}, t)))));
+  if (rec.pitfalls && rec.pitfalls.length) card.append(h('div', { class: 'callout warn' }, h('b', {}, data.status === 'verified' ? 'Watch out — common pitfalls' : 'Watch out — common pitfalls (AI-suggested)'), h('ul', {}, rec.pitfalls.map((t) => h('li', {}, t)))));
+  // draw after insertion so text measurement is accurate
+  requestAnimationFrame(() => play(sp));
+  if (typeof requestAnimationFrame !== 'function') play(sp);
+  return card;
+}
+const loadingCard = (item, idx) => h('article', { class: 'card result' }, h('div', { class: 'rhead' }, h('span', { class: 'idx' }, String(idx)), h('div', { class: 'rtitle' }, item.text)), h('div', { class: 'skel' }, 'Analysing…'));
+
+/* ═══════════════ analysis (seed → server) ═══════════════ */
+const ERR = {
+  AI_KEY_INVALID: 'The AI connection is not working right now. The site owner needs to check it.',
+  AI_NO_CREDIT: 'The AI service has run out of credits for now. The Verified Library still works.',
+  AI_MODEL: 'The AI connection is not set up correctly yet. The site owner needs to check it.',
+  NO_KEY: 'AI analysis has not been set up yet. The Verified Library still works.',
+};
+async function analyseOne(item) {
+  const seed = findSeed(item);
+  if (seed) return { status: 'verified', record: { tree: seed.tree, pitfalls: seed.pitfalls || [], notes: seed.notes || [], refs: seed.refs || [] } };
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 58000);
+  try {
+    const res = await fetch(API.analyze, { method: 'POST', headers: { 'content-type': 'application/json' }, signal: ctl.signal, body: JSON.stringify({ mode: item.mode, text: item.text, cat: item.cat, det: item.det }) });
+    if (!(res.headers.get('content-type') || '').includes('json')) throw new Error('offline');
+    const data = await res.json();
+    if (!res.ok) return { status: 'error', message: ERR[data.error] || data.message || 'Something went wrong. Please try again.' };
+    return data;
+  } catch (e) {
+    return { status: 'error', message: e.name === 'AbortError' ? 'The AI took too long to answer. Please try again, or use a shorter line.' : 'AI analysis needs the online version of LinguaLab and a working internet connection.' };
+  } finally { clearTimeout(to); }
+}
+async function runBatch(items, host) {
+  host.replaceChildren();
+  const slots = items.map((it, i) => { const s = h('div', {}, loadingCard(it, i + 1)); host.append(s); return s; });
+  slots[0] && slots[0].scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
+  for (let i = 0; i < items.length; i++) slots[i].replaceChildren(resultCard(items[i], await analyseOne(items[i]), i + 1));
+}
+
+/* ═══════════════ the multi-line composer ═══════════════ */
+const XCATS = [['auto', 'Auto-detect'], ['N', 'Noun phrase (NP)'], ['V', 'Verb phrase (VP)'], ['P', 'Prepositional phrase (PP)'], ['Adj', 'Adjective phrase (AdjP)'], ['Adv', 'Adverb phrase (AdvP)']];
+function burst(btn, ev) {
+  const r = btn.getBoundingClientRect(); const x = ev.clientX || r.left + r.width / 2, y = ev.clientY || r.top + r.height / 2;
+  const rp = h('span', { class: 'ripple', style: `left:${x - r.left}px;top:${y - r.top}px` }); btn.append(rp); setTimeout(() => rp.remove(), 700);
+  if (REDUCED) return;
+  const glyphs = ['🩵', '❤️', '🩷', '✨', '💙', '💗'];
+  for (let i = 0; i < 16; i++) {
+    const a = Math.random() * Math.PI * 2, d = 55 + Math.random() * 90;
+    const p = h('span', { class: 'pfx', style: `left:${x}px;top:${y}px;--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d - 34}px;--rot:${(Math.random() * 140 - 70) | 0}deg;animation-delay:${(Math.random() * 0.08).toFixed(2)}s` }, glyphs[i % glyphs.length]);
+    document.body.append(p); setTimeout(() => p.remove(), 1100);
+  }
+}
+function createComposer({ mode, host, results, placeholder }) {
+  const rowsEl = h('div', { class: 'rows' });
+  const go = h('button', { class: 'go', type: 'button' }, h('span', { class: 'lbl' }, 'Analyse'), h('span', { class: 'spark', 'aria-hidden': 'true' }, '✨'));
+  const add = h('button', { class: 'ghost', type: 'button', onclick: () => addRow('', 'auto', true) }, '＋ Add another line');
+  const hint = h('span', { class: 'hint' }, h('kbd', {}, 'Enter'), ' or ', h('kbd', {}, '↓'), ' next line · ', h('kbd', {}, 'Ctrl'), '+', h('kbd', {}, 'Enter'), ' analyse all');
+  const opts = h('div', { class: 'opts' });
+  let det = 'np';
+  if (mode === 'xbar') {
+    const sel = h('select', { 'aria-label': 'Determiner analysis', onchange: (e) => { det = e.target.value; } },
+      h('option', { value: 'np' }, 'Determiner as specifier of NP (traditional X-bar)'), h('option', { value: 'dp' }, 'Determiner as head of DP (extended X-bar)'));
+    opts.append(h('label', {}, 'Determiners: ', sel));
+  }
+  const card = h('div', { class: 'card composer' }, mode === 'xbar' ? opts : null, rowsEl, h('div', { class: 'cbar' }, add, hint, go));
+  host.append(card);
+  const rows = () => $$('.row', rowsEl);
+  const renum = () => { rows().forEach((r, i) => { $('.num', r).textContent = i + 1; $('.x', r).style.visibility = rows().length > 1 ? 'visible' : 'hidden'; }); add.disabled = rows().length >= MAX_ROWS; };
+  function focusRow(i) { const r = rows()[i]; if (r) $('input', r).focus(); }
+  function addRow(value = '', cat = 'auto', focus = false, after = null) {
+    if (rows().length >= MAX_ROWS) { toast(`Up to ${MAX_ROWS} lines at a time`); return; }
+    const input = h('input', { type: 'text', value, placeholder: placeholder, autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Line to analyse' });
+    const sel = mode === 'xbar' ? h('select', { 'aria-label': 'Phrase type' }, XCATS.map(([v, t]) => h('option', { value: v, selected: v === cat }, t))) : null;
+    const row = h('div', { class: 'row' }, h('span', { class: 'num' }), input, sel, h('button', { class: 'x', type: 'button', 'aria-label': 'Remove this line', onclick: () => { const i = rows().indexOf(row); row.remove(); renum(); focusRow(Math.max(0, i - 1)); } }, '×'));
+    if (after) after.after(row); else rowsEl.append(row);
+    input.addEventListener('keydown', (e) => {
+      const i = rows().indexOf(row);
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(go, null); }
+      else if (e.key === 'Enter' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (i < rows().length - 1) focusRow(i + 1); else if (input.value.trim()) addRow('', 'auto', true);
+      } else if (e.key === 'ArrowUp') { e.preventDefault(); focusRow(i - 1); }
+      else if (e.key === 'Backspace' && !input.value && rows().length > 1) { e.preventDefault(); row.remove(); renum(); focusRow(Math.max(0, i - 1)); }
+    });
+    renum(); if (focus) input.focus();
+    return row;
+  }
+  const items = () => rows().map((r) => ({ mode, text: $('input', r).value.trim(), cat: mode === 'xbar' ? $('select', r).value : '-', det: mode === 'xbar' ? det : '-' })).filter((x) => x.text);
+  let busy = false;
+  async function run(btn, ev) {
+    if (busy) return; const list = items();
+    if (!list.length) { toast('Type at least one line first'); focusRow(0); return; }
+    busy = true; go.disabled = true; $('.lbl', go).textContent = 'Analysing…';
+    if (ev) burst(btn, ev);
+    try { await runBatch(list, results); } finally { busy = false; go.disabled = false; $('.lbl', go).textContent = 'Analyse'; }
+  }
+  go.addEventListener('click', (e) => run(go, e));
+  addRow('', 'auto', false);
+  return {
+    set(list) { rowsEl.replaceChildren(); (list.length ? list : [{ text: '' }]).slice(0, MAX_ROWS).forEach((it) => addRow(it.text, it.cat || 'auto')); if (mode === 'xbar') { det = list[0] && list[0].det || det; const s = $('select', opts); if (s) s.value = det; } },
+    run: () => run(go, null),
+  };
+}
+
+/* ═══════════════ router & views ═══════════════ */
+const VIEWS = {
+  home: ['LinguaLab', 'Interactive syntax trees for linguistics students'],
+  psr: ['Syntax Analyser', 'Phrase-structure trees, one sentence per line'],
+  xbar: ['X-bar Analysis', 'One phrase at a time'],
+  library: ['Verified Library', 'Trees reviewed by a linguist'],
+  books: ['Reference Books', 'The framework behind the trees'],
+  about: ['About', 'Founded by Shes Mansoor'],
+  owner: ['Owner review', 'Private'],
+};
+const composers = {};
+function route() {
+  const id = (location.hash || '#home').slice(1); const v = VIEWS[id] ? id : 'home';
+  $$('.view').forEach((s) => s.classList.toggle('show', s.id === 'view-' + v));
+  $$('#nav a').forEach((a) => a.classList.toggle('active', a.dataset.view === v));
+  $('#pageTitle').textContent = VIEWS[v][0]; $('#pageSub').textContent = VIEWS[v][1];
+  document.title = (v === 'home' ? '' : VIEWS[v][0] + ' · ') + 'LinguaLab';
+  closeMenu(); window.scrollTo(0, 0);
+  if (v === 'library') loadLibrary();
+  if (v === 'owner') renderOwner();
+}
+function openItem(it) {
+  const comp = composers[it.mode]; location.hash = '#' + it.mode;
+  comp.set([{ text: it.text, cat: it.cat === '-' ? 'auto' : it.cat, det: it.det }]);
+  setTimeout(() => comp.run(), 60);
+}
+const menu = (o) => { $('#sidebar').classList.toggle('open', o); $('#scrim').classList.toggle('show', o); };
+const closeMenu = () => menu(false);
+$('#menuBtn').addEventListener('click', () => menu(!$('#sidebar').classList.contains('open')));
+$('#scrim').addEventListener('click', closeMenu);
+window.addEventListener('hashchange', route);
+
+/* ═══════════════ library ═══════════════ */
+const lib = { items: [], filter: 'all', q: '', loaded: false };
+const levelOfText = (t) => { const n = t.trim().split(/\s+/).length; return n <= 4 ? ['Beginner', 'b'] : n <= 8 ? ['Intermediate', 'i'] : ['Advanced', 'a']; };
+async function loadLibrary() {
+  let server = [];
+  try { const r = await fetch(API.library); if ((r.headers.get('content-type') || '').includes('json') && r.ok) server = (await r.json()).items || []; } catch {}
+  const map = new Map();
+  SEEDS.forEach((s) => map.set(seedKey(s), { mode: s.mode, cat: s.cat || '-', det: s.det || '-', text: s.text }));
+  server.forEach((s) => map.set(`${s.mode}|${s.cat}|${s.det}|${norm(s.text)}`, { mode: s.mode, cat: s.cat, det: s.det, text: s.text }));
+  lib.items = [...map.values()]; lib.loaded = true; renderLibrary();
+}
+function renderLibrary() {
+  const chips = $('#libChips'); chips.replaceChildren(...[['all', 'All'], ['psr', 'Sentences'], ['xbar', 'X-bar phrases']].map(([v, t]) =>
+    h('button', { class: 'fchip' + (lib.filter === v ? ' on' : ''), type: 'button', onclick: () => { lib.filter = v; renderLibrary(); } }, t)));
+  const q = lib.q.toLowerCase(); const list = lib.items.filter((i) => (lib.filter === 'all' || i.mode === lib.filter) && i.text.toLowerCase().includes(q));
+  const grid = $('#libGrid');
+  if (!list.length) { grid.replaceChildren(h('div', { class: 'empty' }, 'Nothing here yet. Try a different search.')); return; }
+  grid.replaceChildren(...list.map((i) => {
+    const [lv, k] = levelOfText(i.text);
+    return h('button', { class: 'libitem', type: 'button', onclick: () => openItem(i) }, h('b', {}, i.text),
+      h('div', { class: 'tags' }, i.mode === 'psr' ? h('span', { class: 'tag ' + k }, lv) : h('span', { class: 'tag x' }, 'X-bar'), h('span', { class: 'tag' }, i.mode === 'psr' ? 'Sentence' : 'Phrase'), h('span', { class: 'tag b' }, '✓ Verified')));
+  }));
+}
+$('#libSearch').addEventListener('input', (e) => { lib.q = e.target.value; renderLibrary(); });
+
+/* ═══════════════ books ═══════════════ */
+$('#bookGrid').append(...Object.values(REFERENCES).map((r) =>
+  h('div', { class: 'card book' }, h('h3', {}, r.title), h('div', { class: 'by' }, `${r.author} · ${r.publisher} · ${r.edition ? r.edition + ' · ' : ''}${r.year}`), h('p', {}, r.covers), h('div', { class: 'use' }, r.use))));
+
+/* ═══════════════ owner (open with #owner) ═══════════════ */
+let ownerToken = ''; try { ownerToken = sessionStorage.getItem('ll_owner') || ''; } catch {}
+async function ownerCall(action, extra = {}) {
+  const res = await fetch(API.owner, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + ownerToken }, body: JSON.stringify({ action, ...extra }) });
+  const data = await res.json().catch(() => ({})); if (!res.ok) { const e = new Error(data.message || 'Request failed'); e.code = data.error; throw e; } return data;
+}
+function renderOwner() {
+  const body = $('#ownerBody'); body.replaceChildren();
+  const input = h('input', { type: 'password', placeholder: 'Owner token', 'aria-label': 'Owner token', autocomplete: 'off' });
+  const msg = h('p', { class: 'hint', style: 'margin-top:10px' });
+  const unlock = async () => { ownerToken = input.value.trim(); try { sessionStorage.setItem('ll_owner', ownerToken); } catch {} await loadOwner(); };
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') unlock(); });
+  if (!ownerToken) { body.append(h('div', { class: 'card' }, h('div', { class: 'owner-login' }, input, h('button', { class: 'btn primary', type: 'button', onclick: unlock }, 'Unlock')), msg)); return; }
+  loadOwner();
+}
+async function loadOwner() {
+  const body = $('#ownerBody'); body.replaceChildren(h('div', { class: 'skel' }, 'Loading…'));
+  let data;
+  try { data = await ownerCall('list'); }
+  catch (e) {
+    if (e.code === 'UNAUTHORISED') { ownerToken = ''; try { sessionStorage.removeItem('ll_owner'); } catch {} }
+    body.replaceChildren(h('div', { class: 'callout err', style: 'margin-top:0' }, h('b', {}, 'Could not open the review queue'), e.message), h('button', { class: 'btn', style: 'margin-top:14px', type: 'button', onclick: renderOwner }, 'Try again')); return;
+  }
+  const status = h('span', { class: 'stat' }, `AI calls today: ${data.usage.used} / ${data.usage.limit}`);
+  const pingOut = h('div', { style: 'margin-top:12px' });
+  const ping = h('button', { class: 'mini', type: 'button', onclick: async () => { pingOut.replaceChildren(h('span', { class: 'hint' }, 'Testing…')); try { const r = await ownerCall('ping'); pingOut.replaceChildren(h('div', { class: 'callout ' + (r.ok ? 'note' : 'err'), style: 'margin-top:0' }, h('b', {}, r.ok ? 'AI connection works' : 'AI connection problem'), r.message, r.detail ? ` (${r.detail})` : '', r.model ? ` Model: ${r.model}.` : '')); } catch (e) { pingOut.replaceChildren(h('div', { class: 'callout err', style: 'margin-top:0' }, e.message)); } } }, 'Test AI connection');
+  const lock = h('button', { class: 'mini', type: 'button', onclick: () => { ownerToken = ''; try { sessionStorage.removeItem('ll_owner'); } catch {} renderOwner(); } }, 'Lock');
+  body.replaceChildren(h('div', { class: 'tools', style: 'margin:0 0 6px' }, status, ping, lock), pingOut);
+
+  const queue = h('div', {}); const vlist = h('div', {});
+  const finish = (el, node) => { el.style.opacity = '.4'; setTimeout(() => { node.remove(); }, 250); };
+  const itemCard = (rec, verified) => {
+    const box = h('div', { class: 'treebox' }); const el = h('div', { class: 'card qitem' });
+    const refBoxes = ['carnie', 'radford'].map((k) => h('label', {}, h('input', { type: 'checkbox', value: k, checked: k === 'carnie' }), REFERENCES[k].title));
+    el.append(h('div', { class: 'qmeta' }, h('b', { style: 'font-size:16px;color:var(--ink)' }, rec.text), h('span', { class: 'tag ' + (rec.mode === 'psr' ? '' : 'x') }, rec.mode === 'psr' ? 'Sentence' : `X-bar · ${rec.cat === 'auto' ? 'auto' : rec.cat + 'P'} · ${rec.det === 'dp' ? 'DP' : 'NP'}`), h('span', {}, new Date(rec.createdAt).toLocaleString())), box);
+    drawTree(box, rec.tree, { mode: rec.mode, sp: 0, onSelect: () => {} });
+    if (rec.notes && rec.notes.length) el.append(h('div', { class: 'callout note' }, h('b', {}, 'AI notes'), h('ul', {}, rec.notes.map((t) => h('li', {}, t)))));
+    if (verified) {
+      el.append(h('div', { class: 'qmeta', style: 'margin-top:10px' }, 'Checked against: ' + ((rec.refs || []).map((r) => REFERENCES[r] && REFERENCES[r].title).filter(Boolean).join('; ') || 'no book recorded')),
+        h('div', { class: 'qbtns' }, h('button', { class: 'btn-no', type: 'button', onclick: async () => { await ownerCall('revoke', { id: rec.id }); finish(el, el); toast('Moved back to the waiting list'); } }, 'Move back to waiting')));
+    } else {
+      el.append(h('div', { class: 'refs' }, h('b', {}, 'I checked this against:'), refBoxes),
+        h('div', { class: 'qbtns' },
+          h('button', { class: 'btn-ok', type: 'button', onclick: async () => { const refs = refBoxes.map((l) => $('input', l)).filter((c) => c.checked).map((c) => c.value); await ownerCall('approve', { id: rec.id, refs }); finish(el, el); toast('Approved — now Linguist Verified'); } }, '✓ Approve as Linguist Verified'),
+          h('button', { class: 'btn-no', type: 'button', onclick: async () => { await ownerCall('reject', { id: rec.id }); finish(el, el); toast('Removed'); } }, 'Reject')));
+    }
+    return el;
+  };
+  queue.append(h('h3', { style: 'margin:22px 0 4px' }, `Waiting for your review (${data.pending.length})`));
+  if (!data.pending.length) queue.append(h('div', { class: 'empty', style: 'margin-top:10px' }, 'Nothing waiting. New sentences students analyse will appear here.'));
+  data.pending.forEach((r) => queue.append(itemCard(r, false)));
+  vlist.append(h('h3', { style: 'margin:30px 0 4px' }, `Approved (${data.verified.length})`));
+  data.verified.forEach((r) => vlist.append(itemCard(r, true)));
+  body.append(queue, vlist);
+}
+
+/* ═══════════════ boot ═══════════════ */
+composers.psr = createComposer({ mode: 'psr', host: $('#composer-psr'), results: $('#results-psr'), placeholder: 'e.g. The old man walked slowly in the garden.' });
+composers.xbar = createComposer({ mode: 'xbar', host: $('#composer-xbar'), results: $('#results-xbar'), placeholder: 'e.g. the old man from Karachi' });
+route();
+})();
+</script>
+</body>
+</html>

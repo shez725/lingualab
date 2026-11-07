@@ -1,0 +1,10 @@
+{
+  "name": "lingualab",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LinguaLab — interactive syntax tree and X-bar analysis for linguistics students.",
+  "dependencies": {
+    "@netlify/blobs": "^9.1.0"
+  }
+}
